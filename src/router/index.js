@@ -24,23 +24,33 @@ const router = createRouter({
       path: '/inicio',
       name: 'inicio',
       component: InicioView,
+      meta: { requiereSesion: true },
     },
     {
       path: '/presupuesto',
       name: 'presupuesto',
       component: PresupuestoView,
+      meta: { requiereSesion: true },
     },
     {
       path: '/productos',
       name: 'productos',
       component: ProductosView,
+      meta: { requiereSesion: true },
     },
     {
     path: '/lista-super',
     name: 'lista-super',
-    component: () => import('../views/ListaSuperView.vue')
+    meta: { requiereSesion: true },
+    component: () => import('../views/ListaSuperView.vue'),
     }, 
   ],
+})
+
+router.beforeEach((to) => {
+  if (to.meta.requiereSesion && !localStorage.getItem('usuario_activo')) {
+    return { name: 'login' }
+  }
 })
 
 export default router

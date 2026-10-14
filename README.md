@@ -1,60 +1,47 @@
-# Control de Despensa y Presupuesto del Hogar
+# Mi Despensa — Sprint 4 (HU-12)
 
-## Sprint 1
+Prototipo académico desarrollado con **Vue 3 + Vite**, siguiendo Scrum. Permite administrar el inventario, una lista automática de productos agotados (stock 0) y un presupuesto mensual.
 
-Aplicación web desarrollada como parte del primer Sprint del proyecto **Control de Despensa y Presupuesto del Hogar**.
+## Inicio rápido
 
-El objetivo de este Sprint es establecer la estructura inicial de la aplicación y desarrollar las funcionalidades prioritarias para la administración de productos y el control del presupuesto del hogar.
+Requiere Node.js compatible con las versiones indicadas en `package.json` (preferentemente Node 24.12+).
 
-## Funcionalidades desarrolladas
+```bash
+npm ci
+npm run dev
+```
 
-Durante el Sprint 1 se trabajó en las siguientes funcionalidades:
+Abre la dirección local que muestre Vite. Para compilar:
 
-- Registro de usuario.
-- Inicio de sesión.
-- Validación de formularios.
-- Página principal o dashboard.
-- Registro de presupuesto mensual.
-- Registro de productos.
-- Consulta de productos registrados.
-- Eliminación de productos.
-- Búsqueda y filtrado de productos.
-- Resumen de productos y valor de la despensa.
+```bash
+npm run build
+```
 
-## Tecnologías utilizadas
+## Pruebas incluidas en Sprint 4
 
-- Vue.js
-- Vue Router
-- JavaScript
-- HTML
-- CSS
-- Vite
+```bash
+npm test
+```
 
-## Historias de usuario trabajadas
+Las pruebas usan el ejecutor integrado `node:test`, sin instalar bibliotecas de pruebas adicionales. Incluyen **pruebas unitarias** de validación, importes, compras y periodos, y **pruebas de integración** del flujo persistencia → compra → stock → presupuesto. Para pruebas visuales, completar `EVIDENCIAS_SPRINT4.md` con capturas reales.
 
-### HU-01 – Registro e inicio de sesión
+## Funcionalidades y reglas
 
-El usuario puede acceder a las pantallas de registro e inicio de sesión. Se implementaron validaciones para comprobar que los campos estén completos y que las contraseñas coincidan.
+- Mi despensa: altas, eliminación y ajuste de unidades; los artículos con stock 0 pasan a la lista del súper.
+- Lista para el súper: filtros de prioridad, edición de costo unitario estimado y cantidad de unidades a comprar. El botón **Comprado** registra la transacción y actualiza el stock.
+- Presupuesto mensual: total e historial de compras efectuadas en el mes, disponible, porcentaje, alerta de excedente y gráfica presupuestado/gastado.
+- Inicio: indicadores basados en datos reales y cierre de sesión funcional.
+- La vista se adapta a tamaños móviles; las tablas permiten desplazamiento horizontal.
 
-### HU-02 – Presupuesto mensual
+**Cambio de comportamiento respecto a Sprints anteriores:** un artículo agotado ya no se considera automáticamente un gasto real; el gasto se produce al registrar una compra. Las compras previas a esta actualización no pueden reconstruirse automáticamente, por lo que el historial comienza con las nuevas compras.
 
-El usuario puede establecer un presupuesto mensual y visualizar la cantidad registrada dentro de la aplicación.
+## Limitaciones del prototipo
 
-### HU-03 – Registro de productos
+Los datos y cuentas se guardan en `localStorage` del navegador y **no** se sincronizan entre dispositivos ni constituyen un sistema de autenticación segura. **No usar contraseñas reales, datos personales sensibles ni información financiera real**. Para una aplicación productiva se requiere backend, base de datos y autenticación segura. El presupuesto es un importe configurado manualmente que se mantiene hasta cambiarlo; los gastos se filtran por mes calendario.
 
-El usuario puede registrar productos indicando nombre, categoría, cantidad y precio unitario. Los productos registrados se muestran dinámicamente en una tabla.
+## Repositorio
 
-### HU-05 – Buscador y filtro
+- Código: https://github.com/MelVga/Sprint-1
+- Sitio: https://melvga.github.io/Sprint-1/
 
-Se implementó una búsqueda dinámica que permite localizar productos registrados por nombre o categoría.
-
-## Estado del proyecto
-
-El proyecto corresponde al **Sprint 1**, por lo que las funcionalidades desarrolladas representan una primera versión del sistema. La información se administra actualmente desde el frontend y todavía no cuenta con almacenamiento permanente en una base de datos.
-
-## Ejecución del proyecto
-
-Para instalar las dependencias:
-
-```sh
-npm install
+**Importante:** estos enlaces solo reflejarán el Sprint 4 corregido una vez que se suba la rama, se integre y se vuelva a publicar GitHub Pages.
