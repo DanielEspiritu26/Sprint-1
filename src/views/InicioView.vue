@@ -1,7 +1,14 @@
 <script setup>
 import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { obtenerProductos, obtenerPresupuesto, obtenerCompras } from '@/services/db.js'
+import { resumenDespensa, formatearMXN } from '@/services/operaciones.js'
 
 const router = useRouter()
+const resumen = ref({ productosRegistrados: 0, productosAgotados: 0, presupuestoMensual: 0, gastosRegistrados: 0 })
+onMounted(() => {
+  resumen.value = resumenDespensa(obtenerProductos(), obtenerPresupuesto(), obtenerCompras())
+})
 
 const irAProductos = () => {
   router.push('/productos')
@@ -16,7 +23,8 @@ const irAListaSuper = () => {
 }
 
 const cerrarSesion = () => {
-  router.push('/')
+  localStorage.removeItem('usuario_activo')
+  router.replace('/')
 }
 </script>
 
@@ -41,23 +49,23 @@ const cerrarSesion = () => {
       </section>
 
       <section class="opciones">
-        <div class="tarjeta" @click="irAProductos">
+        <div class="tarjeta">
           <h3>Mi despensa</h3>
           <p>Registra, consulta y administra los productos disponibles en tu hogar.</p>
-          <button>Ver productos</button>
+          <button type="button" @click="irAProductos">Ver productos</button>
         </div>
 
-        <div class="tarjeta" @click="irAPresupuesto">
+        <div class="tarjeta">
           <h3>Presupuesto mensual</h3>
           <p>Establece tu presupuesto y lleva un control de los gastos realizados.</p>
-          <button>Ver presupuesto</button>
+          <button type="button" @click="irAPresupuesto">Ver presupuesto</button>
         </div>
 
         <!-- Tarjeta para Lista para el Súper (sin icono, centrada y con botón pegadito) -->
-        <div class="tarjeta tarjeta-super" @click="irAListaSuper">
+        <div class="tarjeta tarjeta-super">
           <h3>Lista para el Súper</h3>
-          <p>Consulta los productos agotados o por debajo del umbral mínimo.</p>
-          <button class="btn-super">Ver lista del súper</button>
+          <p>Consulta los productos que tienen exactamente cero unidades.</p>
+          <button type="button" class="btn-super" @click="irAListaSuper">Ver lista del súper</button>
         </div>
       </section>
 
@@ -68,7 +76,7 @@ const cerrarSesion = () => {
           <div class="resumen-item">
             <span>📦</span>
             <div>
-              <strong>0</strong>
+              <strong>{{ resumen.productosRegistrados }}</strong>
               <p>Productos registrados</p>
             </div>
           </div>
@@ -76,7 +84,7 @@ const cerrarSesion = () => {
           <div class="resumen-item">
             <span>💵</span>
             <div>
-              <strong>$0.00</strong>
+              <strong>{{ formatearMXN(resumen.presupuestoMensual) }}</strong>
               <p>Presupuesto mensual</p>
             </div>
           </div>
@@ -84,8 +92,8 @@ const cerrarSesion = () => {
           <div class="resumen-item">
             <span>🧾</span>
             <div>
-              <strong>$0.00</strong>
-              <p>Gastos registrados</p>
+              <strong>{{ formatearMXN(resumen.gastosRegistrados) }}</strong>
+              <p>Gastos del mes</p>
             </div>
           </div>
         </div>
@@ -166,7 +174,6 @@ const cerrarSesion = () => {
   padding: 30px;
   border-radius: 15px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
-  cursor: pointer;
   transition: transform 0.2s;
   
   display: flex;
@@ -269,6 +276,12 @@ const cerrarSesion = () => {
 
   .encabezado {
     padding: 18px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
   }
+
+  .contenido { padding: 24px 15px; }
+  .tarjeta { padding: 20px; }
 }
 </style>

@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { gastosDelMes, formatearMXN, mesDeFecha } from '@/services/operaciones.js'
 import {
   obtenerProductos,
+  obtenerCompras,
   obtenerPresupuesto,
   guardarPresupuesto as guardarPresupuestoDB,
 } from '@/services/db.js'
@@ -11,11 +13,13 @@ const router = useRouter()
 
 const presupuesto = ref(0)
 const productos = ref([])
+const compras = ref([])
 const nuevoPresupuesto = ref('')
 const mensaje = ref('')
 
 onMounted(() => {
   presupuesto.value = obtenerPresupuesto()
+  compras.value = obtenerCompras()
 
   // Mantenemos la estructura e inicializamos el contador de rotación en 0 si no existe
   const productosBD = obtenerProductos()
@@ -28,7 +32,7 @@ onMounted(() => {
 const guardarPresupuesto = () => {
   const cantidad = Number(nuevoPresupuesto.value)
 
-  if (!nuevoPresupuesto.value || cantidad <= 0) {
+  if (!nuevoPresupuesto.value || !Number.isFinite(cantidad) || cantidad <= 0) {
     mensaje.value = 'Ingresa un presupuesto válido mayor a $0.'
     return
   }
@@ -39,19 +43,17 @@ const guardarPresupuesto = () => {
   mensaje.value = 'Presupuesto guardado correctamente.'
 }
 
-const presupuestoFormateado = computed(() => {
-  return presupuesto.value.toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-  })
-})
+const presupuestoFormateado = computed(() => formatearMXN(presupuesto.value))
 
-// Calcula el costo total de los productos agotados
-const gastosRegistrados = computed(() => {
-  return productos.value
-    .filter((producto) => Number(producto.cantidad) === 0)
-    .reduce((total, producto) => total + (Number(producto.costo) || 0), 0)
-})
+// HU-10: únicamente compras efectivamente registradas durante el mes en curso.
+// Los productos agotados representan una compra pendiente, no un gasto realizado.
+const gastosRegistrados = computed(() => gastosDelMes(compras.value))
+const comprasDelMes = computed(() => compras.value
+  .filter((compra) => {
+    try { return mesDeFecha(compra.fecha) === mesDeFecha() } catch { return false }
+  })
+  .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)))
+const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString('es-MX')
 
 // Calcula cuánto dinero queda disponible
 const disponible = computed(() => {
@@ -59,20 +61,10 @@ const disponible = computed(() => {
 })
 
 // Formato de moneda para los gastos
-const gastosFormateados = computed(() => {
-  return gastosRegistrados.value.toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-  })
-})
+const gastosFormateados = computed(() => formatearMXN(gastosRegistrados.value))
 
 // Formato de moneda para el dinero disponible
-const disponibleFormateado = computed(() => {
-  return disponible.value.toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-  })
-})
+const disponibleFormateado = computed(() => formatearMXN(disponible.value))
 
 // Calcula qué porcentaje del presupuesto se ha utilizado
 const porcentajePresupuesto = computed(() => {
@@ -164,7 +156,7 @@ const volverInicio = () => {
       </section>
 
       <section class="informacion">
-        <h3>Resumen del mes</h3>
+        <h3>Resumen del mes (compras confirmadas)</h3>
 
         <div class="datos">
           <div>
@@ -202,12 +194,31 @@ const volverInicio = () => {
         </div>
       </section>
 
+      <section class="historial-card">
+        <h3>Compras registradas este mes</h3>
+        <p class="subtexto">Únicamente se incluyen compras confirmadas desde la lista del súper.</p>
+        <p v-if="comprasDelMes.length === 0" class="subtexto">Todavía no hay compras registradas este mes.</p>
+        <div v-else class="historial-scroll">
+          <table class="historial-tabla">
+            <thead><tr><th>Fecha</th><th>Producto</th><th>Unidades</th><th>Importe</th></tr></thead>
+            <tbody>
+              <tr v-for="compra in comprasDelMes" :key="compra.id">
+                <td>{{ formatearFecha(compra.fecha) }}</td>
+                <td>{{ compra.nombre }}</td>
+                <td>{{ compra.cantidad }}</td>
+                <td>{{ formatearMXN(compra.total) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- HU-10: Resumen gráfico de consumo -->
       <section class="grafica-card">
         <div class="grafica-header">
           <h3>Resumen gráfico de consumo</h3>
           <p class="subtexto">
-            Comparación entre el presupuesto planeado y el gasto real acumulado
+            Comparación entre el presupuesto planeado y las compras registradas durante el mes actual.
           </p>
         </div>
 
@@ -361,7 +372,8 @@ const volverInicio = () => {
 
 .formulario-card,
 .informacion,
-.rotacion-card {
+.rotacion-card,
+.historial-card {
   background: white;
   padding: 28px;
   border-radius: 15px;
@@ -495,6 +507,13 @@ input {
   color: #b91c1c;
   font-weight: 600;
 }
+
+/* Compras confirmadas */
+.historial-card h3 { margin-top: 0; color: #1f2937; }
+.historial-scroll { overflow-x: auto; }
+.historial-tabla { border-collapse: collapse; width: 100%; min-width: 490px; }
+.historial-tabla th, .historial-tabla td { padding: 12px 9px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+.historial-tabla th { color: #4b5563; font-size: 13px; }
 
 /* HU-10: RESUMEN GRÁFICO DE CONSUMO */
 
@@ -676,6 +695,14 @@ input {
   .datos {
     grid-template-columns: 1fr;
   }
+  .contenido { padding: 20px 12px; }
+  .formulario-card, .informacion, .grafica-card, .rotacion-card, .historial-card { padding: 18px 14px; }
+  .resumen h2 { font-size: 29px; overflow-wrap: anywhere; }
+  .grafica-barras { gap: 10px; padding: 12px 4px; height: 280px; }
+  .columna-grafica { min-width: 0; width: 48%; }
+  .barra-vertical-fondo { width: min(75px, 90%); }
+  .valor-grafica { font-size: 12px; overflow-wrap: anywhere; text-align: center; }
+  .datos strong { overflow-wrap: anywhere; }
 
   .item-rotacion {
     flex-direction: column;

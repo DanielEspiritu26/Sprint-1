@@ -1,10 +1,14 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { obtenerProductos, guardarProductos } from '@/services/db.js'
+import { obtenerProductos, guardarProductos, obtenerCompras, guardarCompras } from '@/services/db.js'
+import { crearCompra } from '@/services/operaciones.js'
 
 const router = useRouter()
 const productos = ref([])
+const cantidadesCompra = reactive({})
+const errorCompra = ref('')
+const confirmacionCompra = ref('')
 
 // Estado para el filtro de prioridad
 const filtroPrioridad = ref('Todos') // 'Todos' | 'Indispensable' | 'Secundario'
@@ -15,8 +19,10 @@ onMounted(() => {
   productos.value = productosGuardados.map(p => ({
     ...p,
     prioridad: p.prioridad || 'Indispensable',
-    vecesComprado: Number(p.vecesComprado) || 0
+    vecesComprado: Number(p.vecesComprado) || 0,
+    costo: Number(p.costo ?? p.precio ?? 0),
   }))
+  productos.value.forEach((p) => { cantidadesCompra[p.id] = 1 })
 })
 
 // Muestra únicamente los productos con stock 0
@@ -42,16 +48,32 @@ const incrementarStock = (producto) => {
 }
 
 const actualizarCosto = (producto) => {
-  producto.costo = Number(producto.costo) || 0
+  if (!Number.isFinite(Number(producto.costo)) || Number(producto.costo) < 0) {
+    errorCompra.value = 'El costo debe ser un número válido y no negativo.'
+    producto.costo = Number(producto.precio) || 0
+    return
+  }
+  errorCompra.value = ''
+  producto.costo = Number(producto.costo)
   guardarProductos(productos.value)
 }
 
 const marcarComprado = (id) => {
   const producto = productos.value.find(p => p.id === id)
-  if (producto) {
-    producto.cantidad = 5 // Restaura stock al comprar
+  if (!producto) return
+  try {
+    const compra = crearCompra(producto, cantidadesCompra[id])
+    // La compra se registra antes de actualizar el inventario.
+    guardarCompras([...obtenerCompras(), compra])
+    producto.cantidad = Number(producto.cantidad) + compra.cantidad
+    producto.precio = compra.precioUnitario
     producto.vecesComprado = (Number(producto.vecesComprado) || 0) + 1
     guardarProductos(productos.value)
+    errorCompra.value = ''
+    confirmacionCompra.value = `Compra registrada: ${compra.cantidad} unidad(es) de ${compra.nombre}.`
+  } catch (error) {
+    errorCompra.value = error.message
+    confirmacionCompra.value = ''
   }
 }
 
@@ -72,6 +94,8 @@ const volverInicio = () => {
     </header>
 
     <main class="contenido">
+      <p v-if="errorCompra" class="mensaje-error" role="alert">{{ errorCompra }}</p>
+      <p v-if="confirmacionCompra" class="mensaje-exito" role="status">{{ confirmacionCompra }}</p>
       <div v-if="listaParaElSuper.length === 0" class="sin-productos">
         <div class="icono-feliz">🎉</div>
         <h3>¡Todo en orden!</h3>
@@ -119,7 +143,7 @@ const volverInicio = () => {
                 <th>Categoría</th>
                 <th>Prioridad</th>
                 <th>Stock Actual</th>
-                <th>Costo estimado</th>
+                <th>Precio unitario estimado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -159,6 +183,10 @@ const volverInicio = () => {
                 </td>
 
                 <td class="acciones-celda">
+                  <label class="cantidad-compra">
+                    <span>Unidades</span>
+                    <input v-model.number="cantidadesCompra[item.id]" type="number" min="1" step="1" :aria-label="'Cantidad a comprar de ' + item.nombre" />
+                  </label>
                   <button class="btn-comprar" @click="marcarComprado(item.id)">
                     ✓ Comprado
                   </button>
@@ -212,7 +240,11 @@ table { width: 100%; border-collapse: collapse; text-align: left; }
 th, td { padding: 12px 15px; border-bottom: 1px solid #e5e7eb; }
 th { color: #4b5563; font-size: 13px; background: #f9fafb; }
 .stock-cero { background: #fee2e2; color: #b91c1c; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; }
-.acciones-celda { display: flex; gap: 8px; align-items: center; }
+.acciones-celda { display: flex; gap: 8px; align-items: center; min-width: 220px; }
+.cantidad-compra { display: flex; gap: 4px; flex-direction: column; font-size: 11px; }
+.cantidad-compra input { border: 1px solid #d1d5db; border-radius: 6px; padding: 5px; width: 62px; }
+.mensaje-error { color: #991b1b; background: #fee2e2; padding: 12px; border-radius: 8px; }
+.mensaje-exito { color: #166534; background: #dcfce7; padding: 12px; border-radius: 8px; }
 .btn-comprar { background: #2f6b4f; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; }
 .btn-comprar:hover { background: #24543e; }
 .btn-stock { background: #e2e8f0; border: none; width: 28px; height: 28px; border-radius: 6px; font-weight: bold; cursor: pointer; }
@@ -224,4 +256,13 @@ th { color: #4b5563; font-size: 13px; background: #f9fafb; }
 .input-costo { display: flex; align-items: center; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; max-width: 120px; }
 .input-costo span { padding-left: 8px; color: #6b7280; }
 .input-costo input { width: 90px; border: none; padding: 7px; outline: none; font-size: 13px; }
+@media (max-width: 700px) {
+  .encabezado { padding: 18px; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .contenido { padding: 20px 12px; }
+  .lista-card { padding: 15px 10px; }
+  .lista-header, .filtros-contenedor { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .botones-filtro { flex-wrap: wrap; }
+  table { min-width: 760px; }
+  .tabla-contenedor { -webkit-overflow-scrolling: touch; }
+}
 </style>

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { obtenerProductos, guardarProductos } from '@/services/db.js'
+import { validarProducto } from '@/services/operaciones.js'
 
 const router = useRouter()
 
@@ -26,23 +27,15 @@ const sincronizarYGuardar = () => {
 const agregarProducto = () => {
   mensaje.value = ''
 
-  if (
-    nombre.value.trim() === '' ||
-    categoria.value === '' ||
-    cantidad.value === '' ||
-    precio.value === ''
-  ) {
-    mensaje.value = 'Por favor, completa todos los campos.'
-    return
-  }
-
-  if (Number(cantidad.value) <= 0 || Number(precio.value) < 0) {
-    mensaje.value = 'Ingresa una cantidad y un precio válidos.'
+  const error = validarProducto({ nombre: nombre.value, categoria: categoria.value,
+    cantidad: cantidad.value, precio: precio.value })
+  if (error) {
+    mensaje.value = error
     return
   }
 
   productos.value.push({
-    id: Date.now(),
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     nombre: nombre.value.trim(),
     categoria: categoria.value,
     cantidad: Number(cantidad.value),
@@ -105,7 +98,7 @@ const valorInventario = computed(() => {
 })
 
 const formatearPrecio = (precio) => {
-  return precio.toLocaleString('es-MX', {
+  return Number(precio || 0).toLocaleString('es-MX', {
     style: 'currency',
     currency: 'MXN',
   })
@@ -179,7 +172,7 @@ const volverInicio = () => {
 
             <div class="campo">
               <label for="cantidad">Cantidad</label>
-              <input id="cantidad" v-model="cantidad" type="number" min="1" placeholder="1" />
+              <input id="cantidad" v-model="cantidad" type="number" min="1" step="1" placeholder="1" />
             </div>
 
             <div class="campo">
@@ -318,5 +311,9 @@ th { color: #6b7280; font-size: 13px; }
   .lista-header, .encabezado { flex-direction: column; align-items: flex-start; }
   .filtros-contenedor { flex-direction: column; width: 100%; }
   .filtro-select, .busqueda { max-width: none; width: 100%; }
+  .contenido { padding: 20px 12px; }
+  .formulario-card, .lista-card { padding: 18px 12px; }
+  table { min-width: 620px; }
+  .tabla-contenedor { -webkit-overflow-scrolling: touch; }
 }
 </style>
