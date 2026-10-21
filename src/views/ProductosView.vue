@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { obtenerProductos, guardarProductos } from '@/services/db.js'
-import { validarProducto } from '@/services/operaciones.js'
+import { validarProducto, estadoCaducidad } from '@/services/operaciones.js'
 
 const router = useRouter()
 
@@ -10,6 +10,7 @@ const nombre = ref('')
 const categoria = ref('')
 const cantidad = ref('')
 const precio = ref('')
+const fechaCaducidad = ref('')
 const mensaje = ref('')
 const busqueda = ref('')
 const categoriaFiltro = ref('')
@@ -27,8 +28,12 @@ const sincronizarYGuardar = () => {
 const agregarProducto = () => {
   mensaje.value = ''
 
-  const error = validarProducto({ nombre: nombre.value, categoria: categoria.value,
-    cantidad: cantidad.value, precio: precio.value })
+  const error = validarProducto({
+    nombre: nombre.value,
+    categoria: categoria.value,
+    cantidad: cantidad.value,
+    precio: precio.value,
+  })
   if (error) {
     mensaje.value = error
     return
@@ -40,6 +45,7 @@ const agregarProducto = () => {
     categoria: categoria.value,
     cantidad: Number(cantidad.value),
     precio: Number(precio.value),
+    fechaCaducidad: fechaCaducidad.value || null,
   })
 
   sincronizarYGuardar()
@@ -48,6 +54,7 @@ const agregarProducto = () => {
   categoria.value = ''
   cantidad.value = ''
   precio.value = ''
+  fechaCaducidad.value = ''
 
   mensaje.value = 'Producto registrado correctamente.'
 }
@@ -94,7 +101,7 @@ const totalProductos = computed(() => {
 })
 
 const valorInventario = computed(() => {
-  return productos.value.reduce((total, producto) => total + (producto.precio * producto.cantidad), 0)
+  return productos.value.reduce((total, producto) => total + producto.precio * producto.cantidad, 0)
 })
 
 const formatearPrecio = (precio) => {
@@ -126,7 +133,7 @@ const volverInicio = () => {
           <span>📦</span>
           <div>
             <p>Productos con stock</p>
-            <strong>{{ productos.filter(p => Number(p.cantidad) > 0).length }}</strong>
+            <strong>{{ productos.filter((p) => Number(p.cantidad) > 0).length }}</strong>
           </div>
         </div>
 
@@ -172,7 +179,14 @@ const volverInicio = () => {
 
             <div class="campo">
               <label for="cantidad">Cantidad</label>
-              <input id="cantidad" v-model="cantidad" type="number" min="1" step="1" placeholder="1" />
+              <input
+                id="cantidad"
+                v-model="cantidad"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="1"
+              />
             </div>
 
             <div class="campo">
@@ -185,6 +199,11 @@ const volverInicio = () => {
                 step="0.01"
                 placeholder="0.00"
               />
+            </div>
+            <!-- NUEVO CAMPO: FECHA DE CADUCIDAD -->
+            <div class="campo">
+              <label for="fechaCaducidad">Fecha de caducidad</label>
+              <input id="fechaCaducidad" v-model="fechaCaducidad" type="date" />
             </div>
           </div>
 
@@ -237,6 +256,7 @@ const volverInicio = () => {
                 <th>Categoría</th>
                 <th>Cantidad (Stock)</th>
                 <th>Precio</th>
+                <th>Caducidad</th>
                 <th>Total</th>
                 <th>Acción</th>
               </tr>
@@ -255,8 +275,34 @@ const volverInicio = () => {
                 </td>
                 <td>{{ formatearPrecio(producto.precio) }}</td>
                 <td>
+                  {{ producto.fechaCaducidad || 'Sin fecha' }}
+
+                  <span
+                    v-if="estadoCaducidad(producto.fechaCaducidad) === 'Caducado'"
+                    class="etiqueta-caducado"
+                  >
+                    🔴 Caducado
+                  </span>
+
+                  <span
+                    v-else-if="estadoCaducidad(producto.fechaCaducidad) === 'Próximo a vencer'"
+                    class="etiqueta-proximo"
+                  >
+                    🟡 Próximo a vencer
+                  </span>
+
+                  <span
+                    v-else-if="estadoCaducidad(producto.fechaCaducidad) === 'Vigente'"
+                    class="etiqueta-vigente"
+                  >
+                    🟢 Vigente
+                  </span>
+                </td>
+
+                <td>
                   {{ formatearPrecio(producto.precio * producto.cantidad) }}
                 </td>
+
                 <td>
                   <button class="eliminar" @click="eliminarProducto(producto.id)">Eliminar</button>
                 </td>
@@ -271,49 +317,263 @@ const volverInicio = () => {
 
 <style scoped>
 /* Estilos idénticos a los anteriores */
-.productos-page { min-height: 100vh; background: #f4f6f5; color: #374151; }
-.encabezado { background: white; padding: 22px 8%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
-.encabezado h1 { margin: 0; color: #2f6b4f; }
-.encabezado p { margin: 6px 0 0; color: #6b7280; }
-.volver { background: transparent; border: 1px solid #2f6b4f; color: #2f6b4f; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
-.contenido { max-width: 1100px; margin: auto; padding: 35px 20px; }
-.resumen-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 25px; }
-.resumen-card { background: white; padding: 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px; box-shadow: 0 3px 12px rgba(0,0,0,0.05); }
-.resumen-card span { font-size: 30px; }
-.resumen-card p { margin: 0 0 5px; color: #6b7280; font-size: 13px; }
-.resumen-card strong { color: #2f6b4f; font-size: 21px; }
-.formulario-card, .lista-card { background: white; padding: 28px; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-.formulario-card h2, .lista-card h2 { margin-top: 0; }
-.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
-.campo label { display: block; font-weight: 600; margin-bottom: 7px; }
-.campo input, .campo select, .busqueda { width: 100%; box-sizing: border-box; padding: 11px; border: 1px solid #d1d5db; border-radius: 8px; background: white; font-size: 14px; }
-.agregar { margin-top: 15px; background: #2f6b4f; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
-.lista-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-.filtros-contenedor { display: flex; gap: 12px; align-items: center; }
-.filtro-select, .busqueda { padding: 11px; border: 1px solid #d1d5db; border-radius: 8px; background: white; font-size: 14px; color: #374151; }
-.busqueda { max-width: 250px; }
-.tabla-contenedor { overflow-x: auto; margin-top: 20px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 13px; border-bottom: 1px solid #e5e7eb; }
-th { color: #6b7280; font-size: 13px; }
-.control-stock { display: flex; align-items: center; gap: 10px; }
-.btn-stock { background: #e2e8f0; border: none; width: 28px; height: 28px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.btn-stock:hover { background: #cbd5e1; }
-.stock-valor { min-width: 20px; text-align: center; font-weight: 600; }
-.eliminar { border: none; background: #feeceb; color: #b42318; padding: 7px 10px; border-radius: 6px; cursor: pointer; }
-.sin-productos { text-align: center; padding: 45px; color: #6b7280; }
-.sin-productos div { font-size: 45px; }
-.sin-productos h3 { color: #374151; margin-bottom: 5px; }
-.mensaje-error { color: #b42318; font-size: 14px; }
-.mensaje-exito { color: #2f6b4f; font-size: 14px; font-weight: 600; }
+.productos-page {
+  min-height: 100vh;
+  background: #f4f6f5;
+  color: #374151;
+}
+.encabezado {
+  background: white;
+  padding: 22px 8%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.encabezado h1 {
+  margin: 0;
+  color: #2f6b4f;
+}
+.encabezado p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+.volver {
+  background: transparent;
+  border: 1px solid #2f6b4f;
+  color: #2f6b4f;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.contenido {
+  max-width: 1100px;
+  margin: auto;
+  padding: 35px 20px;
+}
+.resumen-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 25px;
+}
+.resumen-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+}
+.resumen-card span {
+  font-size: 30px;
+}
+.resumen-card p {
+  margin: 0 0 5px;
+  color: #6b7280;
+  font-size: 13px;
+}
+.resumen-card strong {
+  color: #2f6b4f;
+  font-size: 21px;
+}
+.formulario-card,
+.lista-card {
+  background: white;
+  padding: 28px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+.formulario-card h2,
+.lista-card h2 {
+  margin-top: 0;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+.campo label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.campo input,
+.campo select,
+.busqueda {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+}
+.agregar {
+  margin-top: 15px;
+  background: #2f6b4f;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.lista-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.filtros-contenedor {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.filtro-select,
+.busqueda {
+  padding: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  color: #374151;
+}
+.busqueda {
+  max-width: 250px;
+}
+.tabla-contenedor {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  text-align: left;
+  padding: 13px;
+  border-bottom: 1px solid #e5e7eb;
+}
+th {
+  color: #6b7280;
+  font-size: 13px;
+}
+.control-stock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-stock {
+  background: #e2e8f0;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-stock:hover {
+  background: #cbd5e1;
+}
+.stock-valor {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 600;
+}
+.eliminar {
+  border: none;
+  background: #feeceb;
+  color: #b42318;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.sin-productos {
+  text-align: center;
+  padding: 45px;
+  color: #6b7280;
+}
+.sin-productos div {
+  font-size: 45px;
+}
+.sin-productos h3 {
+  color: #374151;
+  margin-bottom: 5px;
+}
+.mensaje-error {
+  color: #b42318;
+  font-size: 14px;
+}
+.mensaje-exito {
+  color: #2f6b4f;
+  font-size: 14px;
+  font-weight: 600;
+}
+.etiqueta-caducado,
+.etiqueta-proximo,
+.etiqueta-vigente {
+  display: inline-block;
+  padding: 5px 10px;
+  margin-top: 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.etiqueta-caducado {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.etiqueta-proximo {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.etiqueta-vigente {
+  background: #dcfce7;
+  color: #166534;
+}
 @media (max-width: 700px) {
-  .resumen-grid, .form-grid { grid-template-columns: 1fr; }
-  .lista-header, .encabezado { flex-direction: column; align-items: flex-start; }
-  .filtros-contenedor { flex-direction: column; width: 100%; }
-  .filtro-select, .busqueda { max-width: none; width: 100%; }
-  .contenido { padding: 20px 12px; }
-  .formulario-card, .lista-card { padding: 18px 12px; }
-  table { min-width: 620px; }
-  .tabla-contenedor { -webkit-overflow-scrolling: touch; }
+  .resumen-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .lista-header,
+  .encabezado {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .filtros-contenedor {
+    flex-direction: column;
+    width: 100%;
+  }
+  .filtro-select,
+  .busqueda {
+    max-width: none;
+    width: 100%;
+  }
+  .contenido {
+    padding: 20px 12px;
+  }
+  .formulario-card,
+  .lista-card {
+    padding: 18px 12px;
+  }
+  table {
+    min-width: 620px;
+  }
+  .tabla-contenedor {
+    -webkit-overflow-scrolling: touch;
+  }
 }
 </style>
