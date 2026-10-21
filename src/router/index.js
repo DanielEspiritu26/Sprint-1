@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 import LoginView from '../views/LoginView.vue'
 import RegistroView from '../views/RegistroView.vue'
@@ -7,7 +7,7 @@ import PresupuestoView from '../views/PresupuestoView.vue'
 import ProductosView from '../views/ProductosView.vue'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
 
   routes: [
     {
@@ -39,11 +39,11 @@ const router = createRouter({
       meta: { requiereSesion: true },
     },
     {
-    path: '/lista-super',
-    name: 'lista-super',
-    meta: { requiereSesion: true },
-    component: () => import('../views/ListaSuperView.vue'),
-    }, 
+      path: '/lista-super',
+      name: 'lista-super',
+      meta: { requiereSesion: true },
+      component: () => import('../views/ListaSuperView.vue'),
+    },
   ],
 })
 
