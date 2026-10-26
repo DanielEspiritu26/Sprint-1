@@ -45,3 +45,22 @@ Los datos y cuentas se guardan en `localStorage` del navegador y **no** se sincr
 - Sitio: https://melvga.github.io/Sprint-1/
 
 **Importante:** estos enlaces solo reflejarán el Sprint 4 corregido una vez que se suba la rama, se integre y se vuelva a publicar GitHub Pages.
+
+# Sprint 6
+
+## Objetivo
+
+Desarrollar herramientas de análisis para los gastos registrados y continuar las pruebas de integración entre los módulos de la aplicación.
+
+## Actividades realizadas
+
+- Revisión del módulo de presupuesto.
+- Verificación de la integración entre despensa y lista para el súper.
+- Validación de la navegación entre pantallas.
+- Pruebas funcionales de los módulos desarrollados.
+
+## Resultados obtenidos
+
+- Integración correcta de los módulos.
+- Funcionamiento estable de la aplicación.
+- Identificación de mejoras futuras relacionadas con análisis de gastos y almacenamiento de información.
